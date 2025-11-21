@@ -176,10 +176,93 @@
         font-size: 1.9rem;
       }
     }
+
+    /* --- Música: overlay y control flotante --- */
+    .audio-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.6);
+      display: none;
+      place-items: center;
+      z-index: 10;
+    }
+
+    .audio-overlay .panel {
+      background: #111827;
+      border: 1px solid rgba(255,255,255,.12);
+      padding: 20px;
+      border-radius: 18px;
+      width: min(92%, 420px);
+      text-align: center;
+      box-shadow: 0 18px 40px rgba(0,0,0,.5);
+    }
+
+    .audio-overlay h2 {
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+    }
+
+    .audio-overlay p {
+      opacity: .85;
+      margin-bottom: 14px;
+    }
+
+    .btn-sound {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #ffdf9e;
+      color: #111;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+    }
+
+    .audio-toggle {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 9;
+      background: rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.2);
+      backdrop-filter: blur(6px);
+      border-radius: 999px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .audio-toggle span {
+      font-size: .9rem;
+    }
   </style>
 </head>
 <body>
   <div class="overlay"></div>
+
+  <!-- AUDIO: pon tu archivo en la raíz como music.mp3 -->
+  <audio id="bgm" src="music.mp3" preload="auto" loop playsinline></audio>
+
+  <!-- Overlay que aparece si el autoplay es bloqueado -->
+  <div id="audioOverlay" class="audio-overlay">
+    <div class="panel">
+      <h2>🎶 ¿Activamos la música?</h2>
+      <p>Toca el botón para acompañar esta invitación con una melodía.</p>
+      <button id="enableSound" class="btn-sound">Activar sonido</button>
+    </div>
+  </div>
+
+  <!-- Botón flotante play/pausa -->
+  <button id="audioToggle" class="audio-toggle" aria-pressed="false" title="Música">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path id="iconPath" d="M8 5v14l11-7z"></path>
+    </svg>
+    <span id="audioState">Reproducir</span>
+  </button>
 
   <main class="card">
     <div class="badge-date">
@@ -212,12 +295,18 @@
       </li>
     </ul>
 
+    <div class="countdown-box">
+      <div class="count-label">Cuenta regresiva para nuestro fin de semana</div>
+      <div id="countdown">Calculando el tiempo para nuestro fin de semana...</div>
+    </div>
 
     <div class="cta">
-    
-      
-      <a class="btn-main" href=" href=https://wa.me/573194816410?text=Sí%2C%20acepto%20vivir%20ese%20fin%20de%20semana%20contigo%20%E2%9D%A4">Sí, acepto vivirlo contigo 💌</a>
-        
+      <a
+        class="btn-main"
+        href="https://wa.me/573194816410?text=S%C3%AD%2C%20acepto%20vivir%20ese%20fin%20de%20semana%20contigo%20%E2%9D%A4">
+        Sí, acepto vivirlo contigo 💌
+      </a>
+
       <p class="note">
         Si algo cambia, solo dime. Pero ojalá este fin de semana siga siendo nuestro.
       </p>
@@ -228,6 +317,121 @@
     </div>
   </main>
 
-  
+  <script>
+    // --- Cuenta regresiva: próximo viernes a las 18:00 ---
+    function getNextWeekendStart() {
+      const now = new Date();
+      const target = new Date(now);
+
+      // Viernes = 5 en getDay()
+      const today = now.getDay();
+      let diff = 5 - today;
+
+      if (diff < 0) {
+        diff += 7; // ya pasó el viernes, vamos al siguiente
+      }
+
+      target.setDate(now.getDate() + diff);
+      target.setHours(18, 0, 0, 0); // 18:00
+
+      // Si es viernes y ya pasó la hora, ir al próximo viernes
+      if (diff === 0 && now > target) {
+        target.setDate(target.getDate() + 7);
+      }
+
+      return target;
+    }
+
+    const targetDate = getNextWeekendStart();
+
+    function updateCountdown() {
+      const now = new Date();
+      const diff = targetDate - now;
+      const el = document.getElementById("countdown");
+
+      if (diff <= 0) {
+        el.textContent = "El fin de semana es ahora. Disfrutémoslo juntos. 💖";
+        return;
+      }
+
+      const totalSeconds = Math.floor(diff / 1000);
+      const days = Math.floor(totalSeconds / (60 * 60 * 24));
+      const hours = Math.floor((totalSeconds % (60 * 60 * 24)) / (60 * 60));
+      const minutes = Math.floor((totalSeconds % (60 * 60)) / 60);
+
+      el.textContent = Faltan ${days} día(s), ${hours} hora(s) y ${minutes} minuto(s) para nuestro fin de semana.;
+    }
+
+    updateCountdown();
+    setInterval(updateCountdown, 60 * 1000); // actualiza cada minuto
+
+    // --- Música con autoplay + fallback ---
+    const audio = document.getElementById('bgm');
+    const toggle = document.getElementById('audioToggle');
+    const stateTxt = document.getElementById('audioState');
+    const iconPath = document.getElementById('iconPath');
+    const overlay = document.getElementById('audioOverlay');
+    const enableBtn = document.getElementById('enableSound');
+
+    const setUI = (playing) => {
+      if (playing) {
+        stateTxt.textContent = 'Pausar';
+        iconPath.setAttribute('d', 'M6 19h4V5H6v14zm8-14v14h4V5h-4z');
+        toggle.setAttribute('aria-pressed', 'true');
+        localStorage.setItem('bgmEnabled', '1');
+      } else {
+        stateTxt.textContent = 'Reproducir';
+        iconPath.setAttribute('d', 'M8 5v14l11-7z');
+        toggle.setAttribute('aria-pressed', 'false');
+      }
+    };
+
+    // Intento de autoplay (algunos navegadores lo bloquearán)
+    (async () => {
+      try {
+        await audio.play();
+        setUI(true);
+      } catch (e) {
+        // Bloqueado: mostrar overlay para interacción del usuario
+        overlay.style.display = 'grid';
+        setUI(false);
+      }
+    })();
+
+    // Overlay: primer toque habilita sonido
+    enableBtn.addEventListener('click', async () => {
+      try {
+        await audio.play();
+        setUI(true);
+        overlay.style.display = 'none';
+      } catch (e) {
+        // Si aún falla, mantenemos visible el overlay
+      }
+    });
+
+    // Botón flotante play/pause
+    toggle.addEventListener('click', async () => {
+      if (audio.paused) {
+        try {
+          await audio.play();
+          setUI(true);
+        } catch (e) {}
+      } else {
+        audio.pause();
+        setUI(false);
+      }
+    });
+
+    // Si el usuario ya habilitó antes, reproducir al primer gesto
+    document.addEventListener('pointerdown', async function once() {
+      if (localStorage.getItem('bgmEnabled') === '1' && audio.paused) {
+        try {
+          await audio.play();
+          setUI(true);
+        } catch (e) {}
+      }
+      document.removeEventListener('pointerdown', once);
+    });
+  </script>
 </body>
 </html>
